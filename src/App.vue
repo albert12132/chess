@@ -60,8 +60,10 @@ const onLoadPgn = () => {
   <main>
     <div id="buttons">
       <button @click="onUndo">Undo</button>
-      <button @click="onMakeMove">Make move</button>
-      <input v-model="nextMoveValue" />
+      <div>
+        <button @click="onMakeMove">Make move</button>
+        <input v-model="nextMoveValue" />
+      </div>
       <button @click="onLoadPgn">Load PGN</button>
       <textarea v-model="pgn"></textarea>
     </div>
@@ -74,5 +76,20 @@ main {
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 1rem;
+}
+#buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-right: 1rem;
+}
+#buttons div {
+  display: flex;
+  gap: 0.5rem;
+}
+textarea {
+  width: 100%;
+  height: 10rem;
 }
 </style>
