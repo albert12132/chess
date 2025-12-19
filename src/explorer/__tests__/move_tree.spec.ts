@@ -1,20 +1,14 @@
 import { describe, it, expect, vi } from 'vitest'
 import { buildMoveTree } from '../move_tree'
+import { Pgn } from '../pgn'
 
-// Mock the explorer module to avoid dependency on the actual file
-vi.mock('../../explorer/pgn', () => ({
-  parseMoves: (pgn: string) => {
-    if (pgn === 'pgn1') return ['e4', 'e5']
-    if (pgn === 'pgn2') return ['e4', 'Nf6']
-    if (pgn === 'pgn3') return ['d4', 'd5']
-    return []
-  },
-}))
+const PGN1 = new Pgn(['e4', 'e5'], /* result= */ 'white', /* userIsWhite= */ true)
+const PGN2 = new Pgn(['e4', 'Nf6'], /* result= */ 'white', /* userIsWhite= */ true)
+const PGN3 = new Pgn(['d4', 'd5'], /* result= */ 'white', /* userIsWhite= */ true)
 
 describe('buildMoveTree', () => {
   it('should build a move tree from a list of PGNs', () => {
-    const pgns = ['pgn1', 'pgn2', 'pgn3']
-    const tree = buildMoveTree(pgns)
+    const tree = buildMoveTree([PGN1, PGN2, PGN3])
 
     // Check root
     expect(tree.root.count).toBe(3)
@@ -64,8 +58,7 @@ describe('buildMoveTree', () => {
   })
 
   it('should count duplicate moves but only have one unique prefix', () => {
-    const pgns = ['pgn1', 'pgn1']
-    const tree = buildMoveTree(pgns)
+    const tree = buildMoveTree([PGN1, PGN1])
 
     // Check root. There are 2 PGNs, but they have the same move list so there
     // should only be one path in the tree.

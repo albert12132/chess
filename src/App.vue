@@ -2,8 +2,8 @@
 import { onMounted, ref, computed } from 'vue'
 import { TheChessboard, type BoardApi, type BoardConfig } from 'vue3-chessboard'
 import 'vue3-chessboard/style.css'
-import { fetchPgns, parseColor } from './explorer/pgn'
-import { buildMoveTree, MoveTree } from './explorer/move_tree'
+import { fetchPgns, Pgn } from './explorer/pgn'
+import { buildMoveTree, MoveTree, MoveTreeNode } from './explorer/move_tree'
 
 const boardConfig: BoardConfig = {
   coordinates: true,
@@ -45,9 +45,12 @@ let whiteMoveTree: MoveTree
 let blackMoveTree: MoveTree
 const currMoveTreeNode = ref<MoveTreeNode | undefined>(undefined)
 const sortedNextMoves = computed(() => {
+  if (!currMoveTreeNode.value) {
+    return []
+  }
   // Sort in descending order
   return [...currMoveTreeNode.value.children].sort(
-    ([move1, node1], [move2, node2]) => node2.count - node1.count,
+    ([, node1], [, node2]) => node2.count - node1.count,
   )
 })
 
@@ -57,17 +60,18 @@ const loadPgnsAndBuildTree = async () => {
     return
   }
   console.log(`Fetching PGNs for ${chessComUsername.value}...`)
-  const pgns = await fetchPgns(chessComUsername.value)
+  const pgns: Pgn[] = await fetchPgns(chessComUsername.value)
   console.log(`Found ${pgns.length} PGNs. Building move tree...`)
-  const whitePgns = pgns.filter((pgn) => parseColor(pgn, chessComUsername.value) === true)
-  const blackPgns = pgns.filter((pgn) => parseColor(pgn, chessComUsername.value) === false)
+
+  const whitePgns = pgns.filter((pgn) => pgn.userIsWhite)
+  const blackPgns = pgns.filter((pgn) => !pgn.userIsWhite)
 
   whiteMoveTree = buildMoveTree(whitePgns)
   blackMoveTree = buildMoveTree(blackPgns)
   console.log('White move Tree:', whiteMoveTree)
   console.log('Black move Tree:', blackMoveTree)
 
-  if (isWhite) {
+  if (isWhite.value) {
     currMoveTreeNode.value = whiteMoveTree.root
   } else {
     currMoveTreeNode.value = blackMoveTree.root
@@ -75,6 +79,9 @@ const loadPgnsAndBuildTree = async () => {
 }
 
 const updateMoveTree = (move: string) => {
+  if (!currMoveTreeNode.value) {
+    return
+  }
   const nextNode = currMoveTreeNode.value.children.get(move)
   if (nextNode) {
     boardAPI?.move(move)
@@ -101,6 +108,18 @@ const updateMoveTree = (move: string) => {
           <li v-for="[move, node] in sortedNextMoves" :key="move">
             <button @click="() => updateMoveTree(move)">{{ move }}</button>
             <span>{{ node.count }} times</span>
+            <span>
+              White:
+              {{ Math.round(((node.resultCounts.get('white') || 0) * 100) / node.count) }}%
+            </span>
+            <span>
+              Black:
+              {{ Math.round(((node.resultCounts.get('black') || 0) * 100) / node.count) }}%
+            </span>
+            <span>
+              Draw:
+              {{ Math.round(((node.resultCounts.get('draw') || 0) * 100) / node.count) }}%
+            </span>
           </li>
         </ul>
         <p v-else>No moves loaded.</p>
