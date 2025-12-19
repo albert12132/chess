@@ -19,34 +19,44 @@
   --vt-c-text-light-2: rgba(60, 60, 60, 0.66);
   --vt-c-text-dark-1: var(--vt-c-white);
   --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
+
+  /* Custom dark theme colors */
+  --color-dark-background: #202020;
+  --color-dark-background-soft: #2a2a2a;
+  --color-dark-background-mute: #333333;
+  --color-dark-text: #e0e0e0;
+  --color-dark-text-soft: #cccccc;
+  --color-dark-border: #444444;
+  --color-dark-button-bg: #4a4a4a;
+  --color-dark-button-hover: #5a5a5a;
 }
 
 /* semantic color variables for this project */
 :root {
-  --color-background: var(--vt-c-white);
-  --color-background-soft: var(--vt-c-white-soft);
-  --color-background-mute: var(--vt-c-white-mute);
+  --color-background: var(--color-dark-background); /* Default to dark background */
+  --color-background-soft: var(--color-dark-background-soft);
+  --color-background-mute: var(--color-dark-background-mute);
 
-  --color-border: var(--vt-c-divider-light-2);
-  --color-border-hover: var(--vt-c-divider-light-1);
+  --color-border: var(--color-dark-border);
+  --color-border-hover: var(--vt-c-divider-dark-1);
 
-  --color-heading: var(--vt-c-text-light-1);
-  --color-text: var(--vt-c-text-light-1);
+  --color-heading: var(--color-dark-text);
+  --color-text: var(--color-dark-text-soft);
 
   --section-gap: 160px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-background: var(--vt-c-black);
-    --color-background-soft: var(--vt-c-black-soft);
-    --color-background-mute: var(--vt-c-black-mute);
+    --color-background: var(--color-dark-background);
+    --color-background-soft: var(--color-dark-background-soft);
+    --color-background-mute: var(--color-dark-background-mute);
 
-    --color-border: var(--vt-c-divider-dark-2);
+    --color-border: var(--color-dark-border);
     --color-border-hover: var(--vt-c-divider-dark-1);
 
-    --color-heading: var(--vt-c-text-dark-1);
-    --color-text: var(--vt-c-text-dark-2);
+    --color-heading: var(--color-dark-text);
+    --color-text: var(--color-dark-text-soft);
   }
 }
 
@@ -65,7 +75,7 @@ body {
   transition:
     color 0.5s,
     background-color 0.5s;
-  line-height: 1.6;
+  line-height: 1.8; /* Slightly larger line height for readability */
   font-family:
     Inter,
     -apple-system,
@@ -79,7 +89,7 @@ body {
     'Droid Sans',
     'Helvetica Neue',
     sans-serif;
-  font-size: 15px;
+  font-size: 16px; /* Slightly larger base font size */
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
