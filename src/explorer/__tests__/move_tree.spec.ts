@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
-import { buildMoveTree } from '../../move_tree'
+import { buildMoveTree } from '../move_tree'
 
 // Mock the explorer module to avoid dependency on the actual file
-vi.mock('../../pgn', () => ({
+vi.mock('../../explorer/pgn', () => ({
   parseMoves: (pgn: string) => {
     if (pgn === 'pgn1') return ['e4', 'e5']
     if (pgn === 'pgn2') return ['e4', 'Nf6']

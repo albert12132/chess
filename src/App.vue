@@ -1,39 +1,21 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { TheChessboard, type BoardApi, type BoardConfig } from 'vue3-chessboard'
 import 'vue3-chessboard/style.css'
+import { fetchPgns, parseColor } from './explorer/pgn'
+import { buildMoveTree, MoveTree } from './explorer/move_tree'
 
 const boardConfig: BoardConfig = {
   coordinates: true,
+  orientation: 'white',
+  viewOnly: true,
 }
 
 let boardAPI: BoardApi | undefined
 
-const pgn = ref(`
-[Event "Live Chess"]
-[Site "Chess.com"]
-[Date "2025.12.17"]
-[Round "?"]
-[White "sleepyyysloth"]
-[Black "jak1223"]
-[Result "1-0"]
-[TimeControl "600"]
-[WhiteElo "1262"]
-[BlackElo "1269"]
-[Termination "sleepyyysloth won by checkmate"]
-[ECO "C45"]
-[EndTime "23:58:24 GMT+0000"]
-[Link "https://www.chess.com/game/live/146852107976"]
-
-1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Nxd4 5. Qxd4 Qf6 6. e5 Qf5 7. Bd3 Qe6 8.
-O-O b6 9. Re1 Bc5 10. Qe4 Ne7 11. Qxa8 c6 12. Qxa7 O-O 13. Qa4 b5 14. Qe4 Bb7
-15. Be3 Bxe3 16. Qxe3 Qd5 17. Nc3 Qe6 18. Rad1 Nd5 19. Nxd5 cxd5 20. Bxb5 Rb8
-21. b3 Qg4 22. Qd4 Qg5 23. Bxd7 Rd8 24. Bg4 Re8 25. Bf3 Rd8 26. Qg4 Qh6 27. Qb4
-Ba8 28. Qa5 Rf8 29. Bxd5 Bxd5 30. Rxd5 g6 31. Rd8 Rxd8 32. Qxd8+ Kg7 33. Qf6+
-Kg8 34. g3 Qd2 35. Ra1 Qxc2 36. e6 fxe6 37. Qxe6+ Kg7 38. a4 Qb2 39. Qe1 Qxb3
-40. a5 Qb7 41. a6 Qa7 42. Qb4 Kh6 43. Qb7 Qd4 44. Ra2 Qd1+ 45. Kg2 g5 46. a7 g4
-47. a8=Q Qd6 48. Qc6 Qxc6+ 49. Qxc6+ Kh5 50. Ra5# 1-0
-`)
+const pgn = ref('')
+const chessComUsername = ref('sleepyyysloth')
+const isWhite = ref(true)
 
 // access the boardAPI in the onMounted hook
 onMounted(() => {
@@ -41,33 +23,89 @@ onMounted(() => {
   console.log(boardAPI?.getBoardPosition())
 })
 
+const onSwitchColor = () => {
+  isWhite.value = !isWhite.value
+  boardAPI?.resetBoard()
+  if (isWhite.value) {
+    currMoveTreeNode.value = whiteMoveTree.root
+  } else {
+    boardAPI?.toggleOrientation()
+    currMoveTreeNode.value = blackMoveTree.root
+  }
+}
+
 const onUndo = () => {
   boardAPI?.undoLastMove()
+  if (currMoveTreeNode.value && currMoveTreeNode.value.parent) {
+    currMoveTreeNode.value = currMoveTreeNode.value.parent
+  }
 }
 
-let nextMoveValue = ref('')
-const onMakeMove = () => {
-  console.log(nextMoveValue)
-  boardAPI?.move(nextMoveValue.value)
+let whiteMoveTree: MoveTree
+let blackMoveTree: MoveTree
+const currMoveTreeNode = ref<MoveTreeNode | undefined>(undefined)
+const sortedNextMoves = computed(() => {
+  // Sort in descending order
+  return [...currMoveTreeNode.value.children].sort(
+    ([move1, node1], [move2, node2]) => node2.count - node1.count,
+  )
+})
+
+const loadPgnsAndBuildTree = async () => {
+  if (!chessComUsername.value) {
+    console.warn('Please enter a Chess.com username.')
+    return
+  }
+  console.log(`Fetching PGNs for ${chessComUsername.value}...`)
+  const pgns = await fetchPgns(chessComUsername.value)
+  console.log(`Found ${pgns.length} PGNs. Building move tree...`)
+  const whitePgns = pgns.filter((pgn) => parseColor(pgn, chessComUsername.value) === true)
+  const blackPgns = pgns.filter((pgn) => parseColor(pgn, chessComUsername.value) === false)
+
+  whiteMoveTree = buildMoveTree(whitePgns)
+  blackMoveTree = buildMoveTree(blackPgns)
+  console.log('White move Tree:', whiteMoveTree)
+  console.log('Black move Tree:', blackMoveTree)
+
+  if (isWhite) {
+    currMoveTreeNode.value = whiteMoveTree.root
+  } else {
+    currMoveTreeNode.value = blackMoveTree.root
+  }
 }
 
-const onLoadPgn = () => {
-  boardAPI?.loadPgn(pgn.value)
+const updateMoveTree = (move: string) => {
+  const nextNode = currMoveTreeNode.value.children.get(move)
+  if (nextNode) {
+    boardAPI?.move(move)
+    currMoveTreeNode.value = nextNode
+  }
 }
 </script>
 
 <template>
   <main>
-    <div id="buttons">
-      <button @click="onUndo">Undo</button>
-      <div>
-        <button @click="onMakeMove">Make move</button>
-        <input v-model="nextMoveValue" />
-      </div>
-      <button @click="onLoadPgn">Load PGN</button>
-      <textarea v-model="pgn"></textarea>
-    </div>
     <TheChessboard :board-config="boardConfig" @board-created="(api) => (boardAPI = api)" />
+    <div>
+      <div id="buttons">
+        <button @click="onSwitchColor">Switch to {{ isWhite ? 'black' : 'white' }}</button>
+        <button @click="onUndo">Undo</button>
+        <div>
+          <input v-model="chessComUsername" placeholder="Chess.com Username" />
+          <button @click="loadPgnsAndBuildTree">Load Chess.com PGNs</button>
+        </div>
+      </div>
+      <div id="move-list">
+        <h3>Next Move Tree</h3>
+        <ul v-if="currMoveTreeNode">
+          <li v-for="[move, node] in sortedNextMoves" :key="move">
+            <button @click="() => updateMoveTree(move)">{{ move }}</button>
+            <span>{{ node.count }} times</span>
+          </li>
+        </ul>
+        <p v-else>No moves loaded.</p>
+      </div>
+    </div>
   </main>
 </template>
 
@@ -91,5 +129,19 @@ main {
 textarea {
   width: 100%;
   height: 10rem;
+}
+#move-list {
+  margin-left: 1rem;
+  border: 1px solid #ccc;
+  padding: 1rem;
+  max-height: 500px; /* Adjust as needed */
+  overflow-y: auto;
+}
+#move-list ul {
+  list-style: none;
+  padding: 0;
+}
+#move-list li {
+  margin-bottom: 0.25rem;
 }
 </style>
