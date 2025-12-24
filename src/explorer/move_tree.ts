@@ -27,6 +27,10 @@ export class MoveTreeNode {
 export class MoveTree {
   root: MoveTreeNode
 
+  // Each individual move is counted. For example, a game in which both players have made
+  // two moves would have a depth of 4.
+  static #DEPTH_LIMIT = 20
+
   constructor() {
     this.root = new MoveTreeNode('root')
   }
@@ -38,6 +42,7 @@ export class MoveTree {
     currentNode.resultCounts.set(pgn.result, resultCountForResult + 1)
 
     let isWhite = true
+    let moveCount = 0
     for (const move of pgn.moves) {
       let nextNode = currentNode.children.get(move)
       if (!nextNode) {
@@ -51,6 +56,11 @@ export class MoveTree {
       const resultCountForResult: number = currentNode.resultCounts.get(pgn.result) || 0
       currentNode.resultCounts.set(pgn.result, resultCountForResult + 1)
       isWhite = !isWhite
+
+      moveCount++
+      if (moveCount > MoveTree.#DEPTH_LIMIT) {
+        break
+      }
     }
   }
 }

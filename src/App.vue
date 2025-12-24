@@ -8,6 +8,7 @@ const boardConfig: BoardConfig = {
   coordinates: true,
   orientation: 'white',
   viewOnly: true,
+  blockTouchScroll: true, // We'll capture our own keyboard shortcuts for "Undo"
 }
 
 const boardAPI = ref<BoardApi>()

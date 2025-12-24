@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { BoardApi } from 'vue3-chessboard'
 import { fetchPgns, Pgn } from '../explorer/pgn'
 import { buildMoveTree, MoveTree, MoveTreeNode } from '../explorer/move_tree'
+
+const COPY_SUCCESS_TIMEOUT_MS = 2000
 
 const props = defineProps<{
   boardAPI: BoardApi | undefined
 }>()
 
-const chessComUsername = ref('sleepyyysloth')
 const isWhite = ref(true)
-
 const onSwitchColor = () => {
   isWhite.value = !isWhite.value
   props.boardAPI?.resetBoard()
@@ -29,6 +29,19 @@ const onUndo = () => {
   }
 }
 
+// Keyboard shortcuts
+const onGlobalKeyup = (event: KeyboardEvent) => {
+  if (event.key === 'ArrowLeft') {
+    onUndo()
+  }
+}
+onMounted(() => {
+  window.addEventListener('keyup', onGlobalKeyup)
+})
+onUnmounted(() => {
+  window.removeEventListener('keyup', onGlobalKeyup)
+})
+
 const onReset = () => {
   props.boardAPI?.resetBoard()
   if (isWhite.value) {
@@ -38,6 +51,31 @@ const onReset = () => {
     currMoveTreeNode.value = blackMoveTree.root
   }
 }
+
+const copySuccess = ref(false)
+let timeoutId: number = 0
+const onCopyPgn = async () => {
+  const pgn = props.boardAPI?.getPgn() || ''
+  if (pgn === '') {
+    alert('Failed to copy PGN')
+  }
+
+  try {
+    await navigator.clipboard.writeText(pgn)
+  } catch (e) {
+    alert('Failed to copy PGN: ' + e)
+  }
+
+  copySuccess.value = true
+  setTimeout(() => {
+    copySuccess.value = false
+  }, COPY_SUCCESS_TIMEOUT_MS)
+}
+onUnmounted(() => {
+  if (timeoutId !== 0) {
+    clearTimeout(timeoutId)
+  }
+})
 
 let whiteMoveTree: MoveTree
 let blackMoveTree: MoveTree
@@ -52,6 +90,7 @@ const sortedNextMoves = computed(() => {
   )
 })
 
+const chessComUsername = ref('')
 const loading = ref(false)
 const loadPgnsAndBuildTree = async () => {
   if (!chessComUsername.value) {
@@ -105,6 +144,10 @@ const updateMoveTree = (move: string) => {
         </button>
         <button @click="onUndo" title="Undo move"><span class="pi pi-arrow-left"></span></button>
         <button @click="onReset" title="Reset board"><span class="pi pi-undo"></span></button>
+        <button @click="onCopyPgn" title="Copy PGN">
+          <span v-if="!copySuccess" class="pi pi-copy"></span>
+          <span v-else class="pi pi-check-circle"></span>
+        </button>
       </div>
       <div>
         <input
@@ -165,8 +208,8 @@ const updateMoveTree = (move: string) => {
   ); /* Use a slightly softer background for the sidebar */
   border-radius: 8px;
   margin-left: 2rem; /* Add some space between the board and the sidebar */
-  height: 61vh; /* Fixed height for the sidebar, matching common chessboard height */
-  width: 40vh; /* Fixed width for the sidebar */
+  height: 90vh; /* Fixed height for the sidebar, matching common chessboard height */
+  width: 60vh; /* Fixed width for the sidebar */
   box-sizing: border-box; /* Include padding in the height calculation */
   flex-shrink: 0; /* Prevent shrinking */
 }
@@ -225,7 +268,7 @@ h3 {
 #move-list {
   border: 1px solid var(--color-dark-border); /* Darker border */
   padding: 1.5rem; /* Suitable padding */
-  height: 44vh; /* Adjust as needed */
+  height: 65vh; /* Adjust as needed */
   overflow-y: auto;
   border-radius: 8px;
   background-color: var(--color-background-mute); /* Slightly different background for the list */
