@@ -9,6 +9,7 @@ export class MoveTreeNode {
   isWhite: boolean
 
   resultCounts: Map<Result, number>
+  gameHistory: { result: Result; date: Date }[]
 
   constructor(move: string, isWhite = true) {
     this.move = move
@@ -21,6 +22,7 @@ export class MoveTreeNode {
       ['black', 0],
       ['draw', 0],
     ])
+    this.gameHistory = []
   }
 }
 
@@ -40,6 +42,7 @@ export class MoveTree {
     currentNode.count++ // Increment root count for each PGN
     const resultCountForResult: number = currentNode.resultCounts.get(pgn.result) || 0
     currentNode.resultCounts.set(pgn.result, resultCountForResult + 1)
+    currentNode.gameHistory.push({ result: pgn.result, date: pgn.date })
 
     let isWhite = true
     let moveCount = 0
@@ -55,6 +58,7 @@ export class MoveTree {
       currentNode.count++
       const resultCountForResult: number = currentNode.resultCounts.get(pgn.result) || 0
       currentNode.resultCounts.set(pgn.result, resultCountForResult + 1)
+      currentNode.gameHistory.push({ result: pgn.result, date: pgn.date })
       isWhite = !isWhite
 
       moveCount++

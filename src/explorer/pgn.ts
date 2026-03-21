@@ -4,15 +4,33 @@ export class Pgn {
   moves: string[]
   result: Result
   userIsWhite: boolean
+  date: Date
 
-  constructor(moves: string[], result: Result, userIsWhite: boolean) {
+  constructor(moves: string[], result: Result, userIsWhite: boolean, date: Date) {
     this.moves = moves
     this.result = result
     this.userIsWhite = userIsWhite
+    this.date = date
   }
 
   public static parse(pgn: string, username: string): Pgn {
-    return new Pgn(Pgn.parseMoves(pgn), Pgn.parseResult(pgn), Pgn.parseUserIsWhite(pgn, username))
+    return new Pgn(
+      Pgn.parseMoves(pgn),
+      Pgn.parseResult(pgn),
+      Pgn.parseUserIsWhite(pgn, username),
+      Pgn.parseDate(pgn),
+    )
+  }
+
+  static parseDate(pgn: string): Date {
+    const dateMatch = pgn.match(/\[Date\s+"(\d{4})\.(\d{2})\.(\d{2})"\]/)
+    if (dateMatch) {
+      const year = parseInt(dateMatch[1])
+      const month = parseInt(dateMatch[2]) - 1 // JS months are 0-indexed
+      const day = parseInt(dateMatch[3])
+      return new Date(year, month, day)
+    }
+    return new Date(0) // Default to epoch if date is missing
   }
 
   static parseMoves(pgn: string): string[] {

@@ -2,9 +2,9 @@ import { describe, it, expect, vi } from 'vitest'
 import { buildMoveTree } from '../move_tree'
 import { Pgn } from '../pgn'
 
-const PGN1 = new Pgn(['e4', 'e5'], /* result= */ 'white', /* userIsWhite= */ true)
-const PGN2 = new Pgn(['e4', 'Nf6'], /* result= */ 'white', /* userIsWhite= */ true)
-const PGN3 = new Pgn(['d4', 'd5'], /* result= */ 'white', /* userIsWhite= */ true)
+const PGN1 = new Pgn(['e4', 'e5'], 'white', true, new Date('2024-01-01'))
+const PGN2 = new Pgn(['e4', 'Nf6'], 'white', true, new Date('2024-01-01'))
+const PGN3 = new Pgn(['d4', 'd5'], 'white', true, new Date('2024-02-01'))
 
 describe('buildMoveTree', () => {
   it('should build a move tree from a list of PGNs', () => {
@@ -28,6 +28,7 @@ describe('buildMoveTree', () => {
         expect(e5Node.count).toBe(1)
         expect(e5Node.isWhite).toBe(false)
         expect(e5Node.children.size).toBe(0)
+        expect(e5Node.gameHistory).toEqual([{ result: 'white', date: new Date('2024-01-01') }])
       }
 
       const nf6Node = e4Node.children.get('Nf6')

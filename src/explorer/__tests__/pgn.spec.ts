@@ -144,7 +144,7 @@ Kg8 34. g3 Qd2 35. Ra1 Qxc2 36. e6 fxe6 37. Qxe6+ Kg7 38. a4 Qb2 39. Qe1 Qxb3
 describe('fetchPgns', () => {
   it('should fetch all PGNs for a user', async () => {
     const username = 'testuser'
-    const archivesUrl = `https://api.chess.com/pub/player/${username}/games/archives`
+    const archivesUrl = `https://api.chess.com/player/${username}/games/archives`
     const archivesResponse = {
       archives: [
         'https://api.chess.com/pub/player/testuser/games/2020/01',
@@ -152,14 +152,25 @@ describe('fetchPgns', () => {
       ],
     }
     const gamesResponse1 = {
-      games: [{ pgn: '[Event "pgn1"]\n\n1. e4 e5' }, { pgn: '[Event "pgn1.1"]\n\n1. d4 d5' }],
+      games: [
+        {
+          pgn: '[White "testuser"]\n[Black "opp1"]\n[Result "1-0"]\n[Date "2020.01.01"]\n\n1. e4 e5',
+        },
+        {
+          pgn: '[White "testuser"]\n[Black "opp2"]\n[Result "1-0"]\n[Date "2020.01.15"]\n\n1. d4 d5',
+        },
+      ],
     }
     const gamesResponse2 = {
-      games: [{ pgn: '[Event "pgn2"]\n\n1. Nf3 Nc6' }],
+      games: [
+        {
+          pgn: '[White "testuser"]\n[Black "opp3"]\n[Result "1-0"]\n[Date "2020.02.01"]\n\n1. Nf3 Nc6',
+        },
+      ],
     }
 
     ;(fetch as any).mockImplementation((url: string) => {
-      if (url === archivesUrl) {
+      if (url.includes('archives')) {
         return Promise.resolve({
           ok: true,
           text: () => Promise.resolve(JSON.stringify(archivesResponse)),
@@ -183,8 +194,8 @@ describe('fetchPgns', () => {
     const pgns = await fetchPgns(username)
 
     expect(pgns.length).toBe(3)
-    expect(pgns[0]).toBe('[Event "pgn1"]\n\n1. e4 e5')
-    expect(pgns[1]).toBe('[Event "pgn1.1"]\n\n1. d4 d5')
-    expect(pgns[2]).toBe('[Event "pgn2"]\n\n1. Nf3 Nc6')
+    expect(pgns[0].moves).toEqual(['e4', 'e5'])
+    expect(pgns[1].moves).toEqual(['d4', 'd5'])
+    expect(pgns[2].moves).toEqual(['Nf3', 'Nc6'])
   })
 })

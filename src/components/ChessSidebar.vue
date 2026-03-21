@@ -77,6 +77,8 @@ onUnmounted(() => {
   }
 })
 
+const activeTab = ref<'moves' | 'winrate'>('moves')
+
 let whiteMoveTree: MoveTree
 let blackMoveTree: MoveTree
 const currMoveTreeNode = ref<MoveTreeNode | undefined>(undefined)
@@ -133,6 +135,55 @@ const updateMoveTree = (move: string) => {
     currMoveTreeNode.value = nextNode
   }
 }
+
+const winRateByMonth = computed(() => {
+  if (!currMoveTreeNode.value) {
+    return []
+  }
+
+  const history = currMoveTreeNode.value.gameHistory
+  const grouped = new Map<string, { white: number; black: number; draw: number; total: number }>()
+
+  for (const game of history) {
+    const monthKey = `${game.date.getFullYear()}-${(game.date.getMonth() + 1).toString().padStart(2, '0')}`
+    if (!grouped.has(monthKey)) {
+      grouped.set(monthKey, { white: 0, black: 0, draw: 0, total: 0 })
+    }
+    const stats = grouped.get(monthKey)!
+    stats[game.result]++
+    stats.total++
+  }
+
+  return Array.from(grouped.entries())
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([month, stats]) => ({
+      month,
+      whiteRate: (stats.white / stats.total) * 100,
+      blackRate: (stats.black / stats.total) * 100,
+      drawRate: (stats.draw / stats.total) * 100,
+      total: stats.total,
+    }))
+})
+
+const totalWinRate = computed(() => {
+  if (!currMoveTreeNode.value) {
+    return null
+  }
+
+  const history = currMoveTreeNode.value.gameHistory
+  const stats = { white: 0, black: 0, draw: 0, total: history.length }
+
+  for (const game of history) {
+    stats[game.result]++
+  }
+
+  return {
+    whiteRate: (stats.white / stats.total) * 100,
+    blackRate: (stats.black / stats.total) * 100,
+    drawRate: (stats.draw / stats.total) * 100,
+    total: stats.total,
+  }
+})
 </script>
 
 <template>
@@ -161,41 +212,117 @@ const updateMoveTree = (move: string) => {
         </button>
       </div>
     </div>
-    <div id="move-list">
-      <h3>Next Move ({{ currMoveTreeNode?.count || 0 }} games)</h3>
-      <ul v-if="currMoveTreeNode">
-        <li v-for="[move, node] in sortedNextMoves" :key="move">
-          <button @click="() => updateMoveTree(move)">{{ move }}</button>
-          <span>{{ node.count }} times</span>
-          <div class="result-bar">
-            <div
-              class="white-segment"
-              :style="{ width: `${((node.resultCounts.get('white') || 0) / node.count) * 100}%` }"
-            >
-              <span v-if="((node.resultCounts.get('white') || 0) / node.count) * 100 > 5">
-                {{ Math.round(((node.resultCounts.get('white') || 0) * 100) / node.count) }}%
-              </span>
-            </div>
-            <div
-              class="black-segment"
-              :style="{ width: `${((node.resultCounts.get('black') || 0) / node.count) * 100}%` }"
-            >
-              <span v-if="((node.resultCounts.get('black') || 0) / node.count) * 100 > 5">
-                {{ Math.round(((node.resultCounts.get('black') || 0) * 100) / node.count) }}%
-              </span>
-            </div>
-            <div
-              class="draw-segment"
-              :style="{ width: `${((node.resultCounts.get('draw') || 0) / node.count) * 100}%` }"
-            >
-              <span v-if="((node.resultCounts.get('draw') || 0) / node.count) * 100 > 5">
-                {{ Math.round(((node.resultCounts.get('draw') || 0) * 100) / node.count) }}%
-              </span>
-            </div>
-          </div>
-        </li>
-      </ul>
+    <div class="tabs">
+      <button :class="{ active: activeTab === 'moves' }" @click="activeTab = 'moves'">Moves</button>
+      <button :class="{ active: activeTab === 'winrate' }" @click="activeTab = 'winrate'">
+        Win Rate
+      </button>
+    </div>
+    <div id="move-list" v-if="activeTab === 'moves'">
+      <div v-if="currMoveTreeNode && sortedNextMoves.length > 0">
+        <table>
+          <thead>
+            <tr>
+              <th>Move</th>
+              <th>Win Rate</th>
+              <th>Games</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="[move, node] in sortedNextMoves" :key="move">
+              <td>
+                <button class="move-button" @click="() => updateMoveTree(move)">{{ move }}</button>
+              </td>
+              <td>
+                <div class="result-bar">
+                  <div
+                    class="white-segment"
+                    :style="{
+                      width: `${((node.resultCounts.get('white') || 0) / node.count) * 100}%`,
+                    }"
+                  >
+                    <span v-if="((node.resultCounts.get('white') || 0) / node.count) * 100 > 10">
+                      {{ Math.round(((node.resultCounts.get('white') || 0) * 100) / node.count) }}%
+                    </span>
+                  </div>
+                  <div
+                    class="black-segment"
+                    :style="{
+                      width: `${((node.resultCounts.get('black') || 0) / node.count) * 100}%`,
+                    }"
+                  >
+                    <span v-if="((node.resultCounts.get('black') || 0) / node.count) * 100 > 10">
+                      {{ Math.round(((node.resultCounts.get('black') || 0) * 100) / node.count) }}%
+                    </span>
+                  </div>
+                  <div
+                    class="draw-segment"
+                    :style="{
+                      width: `${((node.resultCounts.get('draw') || 0) / node.count) * 100}%`,
+                    }"
+                  >
+                    <span v-if="((node.resultCounts.get('draw') || 0) / node.count) * 100 > 10">
+                      {{ Math.round(((node.resultCounts.get('draw') || 0) * 100) / node.count) }}%
+                    </span>
+                  </div>
+                </div>
+              </td>
+              <td>{{ node.count }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       <p v-else>No moves loaded.</p>
+    </div>
+    <div id="win-rate-view" v-else-if="activeTab === 'winrate'">
+      <div v-if="currMoveTreeNode && currMoveTreeNode.gameHistory.length > 0">
+        <table>
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Win Rate</th>
+              <th>Games</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="totalWinRate" class="total-row">
+              <td>Total</td>
+              <td>
+                <div class="result-bar">
+                  <div class="white-segment" :style="{ width: `${totalWinRate.whiteRate}%` }">
+                    <span v-if="totalWinRate.whiteRate > 10">{{ Math.round(totalWinRate.whiteRate) }}%</span>
+                  </div>
+                  <div class="black-segment" :style="{ width: `${totalWinRate.blackRate}%` }">
+                    <span v-if="totalWinRate.blackRate > 10">{{ Math.round(totalWinRate.blackRate) }}%</span>
+                  </div>
+                  <div class="draw-segment" :style="{ width: `${totalWinRate.drawRate}%` }">
+                    <span v-if="totalWinRate.drawRate > 10">{{ Math.round(totalWinRate.drawRate) }}%</span>
+                  </div>
+                </div>
+              </td>
+              <td>{{ totalWinRate.total }}</td>
+            </tr>
+            <tr v-for="data in winRateByMonth" :key="data.month">
+              <td>{{ data.month }}</td>
+              <td>
+                <div class="result-bar">
+                  <div class="white-segment" :style="{ width: `${data.whiteRate}%` }">
+                    <span v-if="data.whiteRate > 10">{{ Math.round(data.whiteRate) }}%</span>
+                  </div>
+                  <div class="black-segment" :style="{ width: `${data.blackRate}%` }">
+                    <span v-if="data.blackRate > 10">{{ Math.round(data.blackRate) }}%</span>
+                  </div>
+                  <div class="draw-segment" :style="{ width: `${data.drawRate}%` }">
+                    <span v-if="data.drawRate > 10">{{ Math.round(data.drawRate) }}%</span>
+                  </div>
+                </div>
+              </td>
+              <td>{{ data.total }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p v-else>No data available for this position.</p>
     </div>
   </div>
 </template>
@@ -212,6 +339,68 @@ const updateMoveTree = (move: string) => {
   width: 60vh; /* Fixed width for the sidebar */
   box-sizing: border-box; /* Include padding in the height calculation */
   flex-shrink: 0; /* Prevent shrinking */
+  display: flex;
+  flex-direction: column;
+}
+
+.tabs {
+  display: flex;
+  gap: 1px;
+  background-color: var(--color-dark-border);
+  border-radius: 6px 6px 0 0;
+  overflow: hidden;
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.tabs button {
+  border-radius: 0;
+  font-size: 1.2rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--color-background-mute);
+  color: var(--color-text-dark-2);
+  height: 40px; /* Fixed height for tab headers */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tabs button.active {
+  background-color: var(--color-background-soft);
+  color: var(--color-heading);
+  border-bottom: 2px solid var(--color-heading);
+}
+
+#move-list,
+#win-rate-view {
+  border: 1px solid var(--color-dark-border); /* Darker border */
+  padding: 1.5rem; /* Suitable padding */
+  flex-grow: 1;
+  overflow-y: auto;
+  border-radius: 0 0 8px 8px;
+  background-color: var(--color-background-mute); /* Slightly different background for the list */
+}
+
+#move-list table,
+#win-rate-view table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1.2rem;
+  color: var(--color-text);
+}
+
+#move-list th,
+#move-list td,
+#win-rate-view th,
+#win-rate-view td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--color-dark-border);
+}
+
+.total-row {
+  font-weight: bold;
+  background-color: var(--color-background-soft);
 }
 
 #buttons {
@@ -219,6 +408,7 @@ const updateMoveTree = (move: string) => {
   flex-direction: column;
   gap: 0.75rem; /* Increased gap for better spacing */
   margin-bottom: 1.5rem; /* Space below the buttons section */
+  flex-shrink: 0;
 }
 
 #buttons div {
@@ -265,39 +455,10 @@ h3 {
   margin-bottom: 1rem;
 }
 
-#move-list {
-  border: 1px solid var(--color-dark-border); /* Darker border */
-  padding: 1.5rem; /* Suitable padding */
-  height: 65vh; /* Adjust as needed */
-  overflow-y: auto;
-  border-radius: 8px;
-  background-color: var(--color-background-mute); /* Slightly different background for the list */
-}
-
-#move-list ul {
-  list-style: none;
-  padding: 0;
-}
-
-#move-list li {
-  margin-bottom: 0.5rem; /* More space between list items */
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  color: var(--color-text);
-}
-
-#move-list li button {
+.move-button {
   padding: 0.5rem 0.75rem; /* Smaller padding for move buttons */
   font-size: 1.2rem;
   width: 60px; /* Fixed width for move button */
-  flex-shrink: 0; /* Prevent shrinking */
-}
-
-#move-list li span {
-  font-size: 1.2rem;
-  color: var(--color-text-dark-2);
-  width: 90px; /* Fixed width for "x times" span */
   flex-shrink: 0; /* Prevent shrinking */
 }
 
@@ -313,6 +474,7 @@ p {
   border: 1px solid var(--color-dark-border);
   border-radius: 3px;
   overflow: hidden; /* Ensures segments stay within bounds */
+  font-size: 1.2rem;
 }
 
 .white-segment,
