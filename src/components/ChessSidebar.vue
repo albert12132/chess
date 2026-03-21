@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import type { BoardApi } from 'vue3-chessboard'
-import { fetchPgns, Pgn } from '../explorer/pgn'
-import { buildMoveTree, MoveTree, MoveTreeNode } from '../explorer/move_tree'
+import { useMoveTree } from '../composables/useMoveTree'
+import { useWinRate } from '../composables/useWinRate'
 
 const COPY_SUCCESS_TIMEOUT_MS = 2000
 
@@ -11,22 +11,36 @@ const props = defineProps<{
 }>()
 
 const isWhite = ref(true)
+
+const {
+  currMoveTreeNode,
+  loading,
+  sortedNextMoves,
+  loadPgnsAndBuildTree,
+  updateMoveTree,
+  resetMoveTree,
+  undoMoveTree,
+} = useMoveTree(
+  () => props.boardAPI,
+  () => isWhite.value,
+)
+
+const { winRateByMonth, totalWinRate } = useWinRate(() => currMoveTreeNode.value)
+
 const onSwitchColor = () => {
   isWhite.value = !isWhite.value
   props.boardAPI?.resetBoard()
   if (isWhite.value) {
-    currMoveTreeNode.value = whiteMoveTree.root
+    resetMoveTree()
   } else {
     props.boardAPI?.toggleOrientation()
-    currMoveTreeNode.value = blackMoveTree.root
+    resetMoveTree()
   }
 }
 
 const onUndo = () => {
   props.boardAPI?.undoLastMove()
-  if (currMoveTreeNode.value && currMoveTreeNode.value.parent) {
-    currMoveTreeNode.value = currMoveTreeNode.value.parent
-  }
+  undoMoveTree()
 }
 
 // Keyboard shortcuts
@@ -44,12 +58,10 @@ onUnmounted(() => {
 
 const onReset = () => {
   props.boardAPI?.resetBoard()
-  if (isWhite.value) {
-    currMoveTreeNode.value = whiteMoveTree.root
-  } else {
+  if (!isWhite.value) {
     props.boardAPI?.toggleOrientation()
-    currMoveTreeNode.value = blackMoveTree.root
   }
+  resetMoveTree()
 }
 
 const copySuccess = ref(false)
@@ -58,18 +70,18 @@ const onCopyPgn = async () => {
   const pgn = props.boardAPI?.getPgn() || ''
   if (pgn === '') {
     alert('Failed to copy PGN')
+    return
   }
 
   try {
     await navigator.clipboard.writeText(pgn)
+    copySuccess.value = true
+    timeoutId = window.setTimeout(() => {
+      copySuccess.value = false
+    }, COPY_SUCCESS_TIMEOUT_MS)
   } catch (e) {
     alert('Failed to copy PGN: ' + e)
   }
-
-  copySuccess.value = true
-  setTimeout(() => {
-    copySuccess.value = false
-  }, COPY_SUCCESS_TIMEOUT_MS)
 }
 onUnmounted(() => {
   if (timeoutId !== 0) {
@@ -78,111 +90,14 @@ onUnmounted(() => {
 })
 
 const activeTab = ref<'moves' | 'winrate'>('moves')
-
-let whiteMoveTree: MoveTree
-let blackMoveTree: MoveTree
-const currMoveTreeNode = ref<MoveTreeNode | undefined>(undefined)
-const sortedNextMoves = computed(() => {
-  if (!currMoveTreeNode.value) {
-    return []
-  }
-  // Sort in descending order
-  return [...currMoveTreeNode.value.children].sort(
-    ([, node1], [, node2]) => node2.count - node1.count,
-  )
-})
-
 const chessComUsername = ref('')
-const loading = ref(false)
-const loadPgnsAndBuildTree = async () => {
-  if (!chessComUsername.value) {
-    alert('Please enter a Chess.com username.')
-    return
-  }
-  loading.value = true
 
-  let pgns: Pgn[] = []
-  try {
-    pgns = await fetchPgns(chessComUsername.value)
-  } catch (e) {
-    alert('Error loading games: ' + e)
-  } finally {
-    loading.value = false
-  }
-
-  const whitePgns = pgns.filter((pgn) => pgn.userIsWhite)
-  const blackPgns = pgns.filter((pgn) => !pgn.userIsWhite)
-
-  whiteMoveTree = buildMoveTree(whitePgns)
-  blackMoveTree = buildMoveTree(blackPgns)
-
-  if (isWhite.value) {
-    currMoveTreeNode.value = whiteMoveTree.root
-  } else {
-    currMoveTreeNode.value = blackMoveTree.root
-  }
-
-  onReset()
+const onLoad = () => {
+  loadPgnsAndBuildTree(chessComUsername.value, onReset)
 }
 
-const updateMoveTree = (move: string) => {
-  if (!currMoveTreeNode.value) {
-    return
-  }
-  const nextNode = currMoveTreeNode.value.children.get(move)
-  if (nextNode) {
-    props.boardAPI?.move(move)
-    currMoveTreeNode.value = nextNode
-  }
-}
-
-const winRateByMonth = computed(() => {
-  if (!currMoveTreeNode.value) {
-    return []
-  }
-
-  const history = currMoveTreeNode.value.gameHistory
-  const grouped = new Map<string, { white: number; black: number; draw: number; total: number }>()
-
-  for (const game of history) {
-    const monthKey = `${game.date.getFullYear()}-${(game.date.getMonth() + 1).toString().padStart(2, '0')}`
-    if (!grouped.has(monthKey)) {
-      grouped.set(monthKey, { white: 0, black: 0, draw: 0, total: 0 })
-    }
-    const stats = grouped.get(monthKey)!
-    stats[game.result]++
-    stats.total++
-  }
-
-  return Array.from(grouped.entries())
-    .sort(([a], [b]) => b.localeCompare(a))
-    .map(([month, stats]) => ({
-      month,
-      whiteRate: (stats.white / stats.total) * 100,
-      blackRate: (stats.black / stats.total) * 100,
-      drawRate: (stats.draw / stats.total) * 100,
-      total: stats.total,
-    }))
-})
-
-const totalWinRate = computed(() => {
-  if (!currMoveTreeNode.value) {
-    return null
-  }
-
-  const history = currMoveTreeNode.value.gameHistory
-  const stats = { white: 0, black: 0, draw: 0, total: history.length }
-
-  for (const game of history) {
-    stats[game.result]++
-  }
-
-  return {
-    whiteRate: (stats.white / stats.total) * 100,
-    blackRate: (stats.black / stats.total) * 100,
-    drawRate: (stats.draw / stats.total) * 100,
-    total: stats.total,
-  }
+defineExpose({
+  updateMoveTree,
 })
 </script>
 
@@ -201,12 +116,8 @@ const totalWinRate = computed(() => {
         </button>
       </div>
       <div>
-        <input
-          v-model="chessComUsername"
-          @keyup.enter="loadPgnsAndBuildTree"
-          placeholder="chess.com username"
-        />
-        <button @click="loadPgnsAndBuildTree" title="Load chess.com games">
+        <input v-model="chessComUsername" @keyup.enter="onLoad" placeholder="chess.com username" />
+        <button @click="onLoad" title="Load chess.com games">
           <span v-if="loading" class="pi pi-spin pi-spinner"></span>
           <span v-else class="pi pi-cloud-download"></span>
         </button>
@@ -272,7 +183,7 @@ const totalWinRate = computed(() => {
           </tbody>
         </table>
       </div>
-      <p v-else>No moves loaded.</p>
+      <p v-else>No data for this position.</p>
     </div>
     <div id="win-rate-view" v-else-if="activeTab === 'winrate'">
       <div v-if="currMoveTreeNode && currMoveTreeNode.gameHistory.length > 0">
@@ -290,13 +201,19 @@ const totalWinRate = computed(() => {
               <td>
                 <div class="result-bar">
                   <div class="white-segment" :style="{ width: `${totalWinRate.whiteRate}%` }">
-                    <span v-if="totalWinRate.whiteRate > 10">{{ Math.round(totalWinRate.whiteRate) }}%</span>
+                    <span v-if="totalWinRate.whiteRate > 10"
+                      >{{ Math.round(totalWinRate.whiteRate) }}%</span
+                    >
                   </div>
                   <div class="black-segment" :style="{ width: `${totalWinRate.blackRate}%` }">
-                    <span v-if="totalWinRate.blackRate > 10">{{ Math.round(totalWinRate.blackRate) }}%</span>
+                    <span v-if="totalWinRate.blackRate > 10"
+                      >{{ Math.round(totalWinRate.blackRate) }}%</span
+                    >
                   </div>
                   <div class="draw-segment" :style="{ width: `${totalWinRate.drawRate}%` }">
-                    <span v-if="totalWinRate.drawRate > 10">{{ Math.round(totalWinRate.drawRate) }}%</span>
+                    <span v-if="totalWinRate.drawRate > 10"
+                      >{{ Math.round(totalWinRate.drawRate) }}%</span
+                    >
                   </div>
                 </div>
               </td>
@@ -322,7 +239,7 @@ const totalWinRate = computed(() => {
           </tbody>
         </table>
       </div>
-      <p v-else>No data available for this position.</p>
+      <p v-else>No data for this position.</p>
     </div>
   </div>
 </template>
