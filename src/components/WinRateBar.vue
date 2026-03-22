@@ -7,7 +7,10 @@ const props = defineProps<{
 </script>
 
 <template>
-  <div class="result-bar">
+  <div
+    class="result-bar"
+    :title="`White: ${Math.round(props.whiteRate)}% | Black: ${Math.round(props.blackRate)}% | Draw: ${Math.round(props.drawRate)}%`"
+  >
     <div class="white-segment" :style="{ width: `${props.whiteRate}%` }">
       <span v-if="props.whiteRate > 10">{{ Math.round(props.whiteRate) }}%</span>
     </div>

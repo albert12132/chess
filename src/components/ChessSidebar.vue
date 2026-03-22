@@ -49,6 +49,8 @@ const onUndo = () => {
 const onGlobalKeyup = (event: KeyboardEvent) => {
   if (event.key === 'ArrowLeft') {
     onUndo()
+  } else if (event.key === 'ArrowUp') {
+    onReset()
   }
 }
 onMounted(() => {
