@@ -150,18 +150,25 @@ defineExpose({
 
 <style scoped>
 #sidebar {
-  padding: 1.5rem; /* Suitable padding around the sidebar */
-  background-color: var(
-    --color-background-soft
-  ); /* Use a slightly softer background for the sidebar */
+  padding: 1rem;
+  background-color: var(--color-background-soft);
   border-radius: 8px;
-  margin-left: 2rem; /* Add some space between the board and the sidebar */
-  height: 90vh; /* Fixed height for the sidebar, matching common chessboard height */
-  width: 60vh; /* Fixed width for the sidebar */
-  box-sizing: border-box; /* Include padding in the height calculation */
-  flex-shrink: 0; /* Prevent shrinking */
+  margin: 1rem 0 0 0; /* Margin on top for mobile */
+  height: auto; /* Let the height be determined by content on mobile */
+  width: 100%; /* Full width for mobile */
+  box-sizing: border-box;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
+}
+
+@media (min-width: 1024px) {
+  #sidebar {
+    padding: 1.5rem;
+    margin: 0 0 0 2rem; /* Restore side margin for desktop */
+    height: 90vh; /* Fixed height for desktop */
+    width: 60vh; /* Fixed width for desktop */
+  }
 }
 
 .tabs {
@@ -216,12 +223,19 @@ button {
   background-color: var(--color-dark-button-bg); /* Darker button background */
   color: var(--color-dark-text); /* Lighter text for buttons */
   border: none;
-  padding: 0.75rem 1.25rem; /* Larger padding for buttons */
+  padding: 0.5rem 1rem; /* Reduced padding for mobile */
   border-radius: 6px; /* Nicer rounded corners */
   cursor: pointer;
-  font-size: 1.5rem; /* Larger text for buttons */
+  font-size: 1.2rem; /* Reduced font size for mobile */
   transition: background-color 0.3s ease;
   flex-grow: 1; /* Make buttons expand */
+}
+
+@media (min-width: 1024px) {
+  button {
+    padding: 0.75rem 1.25rem; /* Larger padding for desktop */
+    font-size: 1.5rem; /* Larger text for desktop */
+  }
 }
 
 button:hover {
@@ -232,10 +246,17 @@ input {
   background-color: var(--color-background-mute); /* Darker input background */
   color: var(--color-dark-text);
   border: 1px solid var(--color-dark-border);
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 1rem; /* Reduced padding for mobile */
   border-radius: 6px;
-  font-size: 1.5rem;
+  font-size: 1.2rem; /* Reduced font size for mobile */
   flex-grow: 1; /* Allow input to grow */
+}
+
+@media (min-width: 1024px) {
+  input {
+    padding: 0.75rem 1rem; /* Larger padding for desktop */
+    font-size: 1.5rem; /* Larger text for desktop */
+  }
 }
 
 h3 {

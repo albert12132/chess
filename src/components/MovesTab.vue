@@ -49,11 +49,17 @@ const emit = defineEmits<{
 <style scoped>
 #move-list {
   border: 1px solid var(--color-dark-border);
-  padding: 1.5rem;
+  padding: 1rem;
   flex-grow: 1;
   overflow-y: auto;
   border-radius: 0 0 8px 8px;
   background-color: var(--color-background-mute);
+}
+
+@media (min-width: 1024px) {
+  #move-list {
+    padding: 1.5rem;
+  }
 }
 
 table {
