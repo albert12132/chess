@@ -3,6 +3,8 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import type { BoardApi } from 'vue3-chessboard'
 import { useMoveTree } from '../composables/useMoveTree'
 import { useWinRate } from '../composables/useWinRate'
+import MovesTab from './MovesTab.vue'
+import WinRateTab from './WinRateTab.vue'
 
 const COPY_SUCCESS_TIMEOUT_MS = 2000
 
@@ -129,118 +131,18 @@ defineExpose({
         Win Rate
       </button>
     </div>
-    <div id="move-list" v-if="activeTab === 'moves'">
-      <div v-if="currMoveTreeNode && sortedNextMoves.length > 0">
-        <table>
-          <thead>
-            <tr>
-              <th>Move</th>
-              <th>Win Rate</th>
-              <th>Games</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="[move, node] in sortedNextMoves" :key="move">
-              <td>
-                <button class="move-button" @click="() => updateMoveTree(move)">{{ move }}</button>
-              </td>
-              <td>
-                <div class="result-bar">
-                  <div
-                    class="white-segment"
-                    :style="{
-                      width: `${((node.resultCounts.get('white') || 0) / node.count) * 100}%`,
-                    }"
-                  >
-                    <span v-if="((node.resultCounts.get('white') || 0) / node.count) * 100 > 10">
-                      {{ Math.round(((node.resultCounts.get('white') || 0) * 100) / node.count) }}%
-                    </span>
-                  </div>
-                  <div
-                    class="black-segment"
-                    :style="{
-                      width: `${((node.resultCounts.get('black') || 0) / node.count) * 100}%`,
-                    }"
-                  >
-                    <span v-if="((node.resultCounts.get('black') || 0) / node.count) * 100 > 10">
-                      {{ Math.round(((node.resultCounts.get('black') || 0) * 100) / node.count) }}%
-                    </span>
-                  </div>
-                  <div
-                    class="draw-segment"
-                    :style="{
-                      width: `${((node.resultCounts.get('draw') || 0) / node.count) * 100}%`,
-                    }"
-                  >
-                    <span v-if="((node.resultCounts.get('draw') || 0) / node.count) * 100 > 10">
-                      {{ Math.round(((node.resultCounts.get('draw') || 0) * 100) / node.count) }}%
-                    </span>
-                  </div>
-                </div>
-              </td>
-              <td>{{ node.count }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p v-else>No data for this position.</p>
-    </div>
-    <div id="win-rate-view" v-else-if="activeTab === 'winrate'">
-      <div v-if="currMoveTreeNode && currMoveTreeNode.gameHistory.length > 0">
-        <table>
-          <thead>
-            <tr>
-              <th>Month</th>
-              <th>Win Rate</th>
-              <th>Games</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="totalWinRate" class="total-row">
-              <td>Total</td>
-              <td>
-                <div class="result-bar">
-                  <div class="white-segment" :style="{ width: `${totalWinRate.whiteRate}%` }">
-                    <span v-if="totalWinRate.whiteRate > 10"
-                      >{{ Math.round(totalWinRate.whiteRate) }}%</span
-                    >
-                  </div>
-                  <div class="black-segment" :style="{ width: `${totalWinRate.blackRate}%` }">
-                    <span v-if="totalWinRate.blackRate > 10"
-                      >{{ Math.round(totalWinRate.blackRate) }}%</span
-                    >
-                  </div>
-                  <div class="draw-segment" :style="{ width: `${totalWinRate.drawRate}%` }">
-                    <span v-if="totalWinRate.drawRate > 10"
-                      >{{ Math.round(totalWinRate.drawRate) }}%</span
-                    >
-                  </div>
-                </div>
-              </td>
-              <td>{{ totalWinRate.total }}</td>
-            </tr>
-            <tr v-for="data in winRateByMonth" :key="data.month">
-              <td>{{ data.month }}</td>
-              <td>
-                <div class="result-bar">
-                  <div class="white-segment" :style="{ width: `${data.whiteRate}%` }">
-                    <span v-if="data.whiteRate > 10">{{ Math.round(data.whiteRate) }}%</span>
-                  </div>
-                  <div class="black-segment" :style="{ width: `${data.blackRate}%` }">
-                    <span v-if="data.blackRate > 10">{{ Math.round(data.blackRate) }}%</span>
-                  </div>
-                  <div class="draw-segment" :style="{ width: `${data.drawRate}%` }">
-                    <span v-if="data.drawRate > 10">{{ Math.round(data.drawRate) }}%</span>
-                  </div>
-                </div>
-              </td>
-              <td>{{ data.total }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p v-else>No data for this position.</p>
-    </div>
+    <MovesTab
+      v-if="activeTab === 'moves'"
+      :curr-move-tree-node="currMoveTreeNode"
+      :sorted-next-moves="sortedNextMoves"
+      @update-move-tree="updateMoveTree"
+    />
+    <WinRateTab
+      v-else-if="activeTab === 'winrate'"
+      :curr-move-tree-node="currMoveTreeNode"
+      :win-rate-by-month="winRateByMonth"
+      :total-win-rate="totalWinRate"
+    />
   </div>
 </template>
 
@@ -286,38 +188,6 @@ defineExpose({
   background-color: var(--color-background-soft);
   color: var(--color-heading);
   border-bottom: 2px solid var(--color-heading);
-}
-
-#move-list,
-#win-rate-view {
-  border: 1px solid var(--color-dark-border); /* Darker border */
-  padding: 1.5rem; /* Suitable padding */
-  flex-grow: 1;
-  overflow-y: auto;
-  border-radius: 0 0 8px 8px;
-  background-color: var(--color-background-mute); /* Slightly different background for the list */
-}
-
-#move-list table,
-#win-rate-view table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 1.2rem;
-  color: var(--color-text);
-}
-
-#move-list th,
-#move-list td,
-#win-rate-view th,
-#win-rate-view td {
-  text-align: left;
-  padding: 0.5rem;
-  border-bottom: 1px solid var(--color-dark-border);
-}
-
-.total-row {
-  font-weight: bold;
-  background-color: var(--color-background-soft);
 }
 
 #buttons {
@@ -370,52 +240,5 @@ h3 {
   font-size: 1.5rem;
   color: var(--color-heading);
   margin-bottom: 1rem;
-}
-
-.move-button {
-  padding: 0.5rem 0.75rem; /* Smaller padding for move buttons */
-  font-size: 1.2rem;
-  width: 60px; /* Fixed width for move button */
-  flex-shrink: 0; /* Prevent shrinking */
-}
-
-p {
-  font-size: 1.5rem; /* Larger text for "No moves loaded" */
-  color: var(--color-text);
-}
-
-.result-bar {
-  display: flex;
-  width: 150px; /* Adjust as needed */
-  height: 15px;
-  border: 1px solid var(--color-dark-border);
-  border-radius: 3px;
-  overflow: hidden; /* Ensures segments stay within bounds */
-  font-size: 1.2rem;
-}
-
-.white-segment,
-.black-segment,
-.draw-segment {
-  display: flex;
-  align-items: center;
-  color: white; /* Adjust text color for visibility */
-  font-size: 0.7em; /* Smaller font size for percentages */
-  font-weight: bold;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* Add text shadow for better readability */
-  padding: 0.2em;
-}
-
-.white-segment {
-  background-color: #e0e0e0; /* Light grey for white */
-  color: #333; /* Darker color for text on white segment */
-}
-
-.black-segment {
-  background-color: #424242; /* Dark grey for black */
-}
-
-.draw-segment {
-  background-color: #9e9e9e; /* Medium grey for draw */
 }
 </style>

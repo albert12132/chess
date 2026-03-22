@@ -1,8 +1,16 @@
 import { computed } from 'vue'
 import type { MoveTreeNode } from '../explorer/move_tree'
 
+export interface WinRateData {
+  month?: string
+  whiteRate: number
+  blackRate: number
+  drawRate: number
+  total: number
+}
+
 export function useWinRate(currMoveTreeNode: () => MoveTreeNode | undefined) {
-  const winRateByMonth = computed(() => {
+  const winRateByMonth = computed<WinRateData[]>(() => {
     const node = currMoveTreeNode()
     if (!node) {
       return []
@@ -32,7 +40,7 @@ export function useWinRate(currMoveTreeNode: () => MoveTreeNode | undefined) {
       }))
   })
 
-  const totalWinRate = computed(() => {
+  const totalWinRate = computed<WinRateData | null>(() => {
     const node = currMoveTreeNode()
     if (!node) {
       return null
